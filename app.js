@@ -7,12 +7,16 @@
   const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'];
   const roomList = document.getElementById('roomList');
   const floorNav = document.getElementById('floorNav');
+  const starFilter = document.getElementById('starFilter');
+  const filterEmpty = document.getElementById('filterEmpty');
   const locationInput = document.getElementById('location');
   const dateInput = document.getElementById('recordDate');
   const progressText = document.getElementById('progressText');
   const clearAllButton = document.getElementById('clearAll');
   const toast = document.getElementById('saveToast');
   let toastTimer;
+  let activeStar = 0;
+  let openBeforeFilter = new Set();
 
   function todayLocal() {
     const now = new Date();
@@ -106,12 +110,13 @@
     if (showToast) showSaved();
   }
 
-  function selectedCount() {
+  function selectedCount(rooms) {
     let count = 0;
+    rooms = rooms || roomData();
     floors.forEach(function (floor) {
       lanes.forEach(function (_, laneIndex) {
         letters.forEach(function (_, roomIndex) {
-          const entry = roomData()[roomKey(floor, laneIndex, roomIndex)];
+          const entry = rooms[roomKey(floor, laneIndex, roomIndex)];
           if (entry && (entry.status === 'close' || entry.stars)) count += 1;
         });
       });
@@ -120,16 +125,52 @@
   }
 
   function updateProgress() {
-    progressText.textContent = '已记录 ' + selectedCount() + ' / ' + (floors.length * lanes.length * letters.length);
+    const rooms = roomData();
+    progressText.textContent = '已记录 ' + selectedCount(rooms) + ' / ' + (floors.length * lanes.length * letters.length);
     floors.forEach(function (floor) {
       const complete = lanes.every(function (_, laneIndex) {
         return letters.every(function (_, roomIndex) {
-          const entry = roomData()[roomKey(floor, laneIndex, roomIndex)];
+          const entry = rooms[roomKey(floor, laneIndex, roomIndex)];
           return entry && (entry.status === 'close' || entry.stars);
         });
       });
       const chip = floorNav.querySelector('[data-floor="' + floor + '"]');
       if (chip) chip.classList.toggle('complete', complete);
+    });
+    updateStarFilterCounts(rooms);
+  }
+
+  function starCount(star, rooms) {
+    let count = 0;
+    floors.forEach(function (floor) {
+      lanes.forEach(function (_, laneIndex) {
+        letters.forEach(function (_, roomIndex) {
+          const entry = rooms[roomKey(floor, laneIndex, roomIndex)];
+          if (entry && entry.stars === star) count += 1;
+        });
+      });
+    });
+    return count;
+  }
+
+  function updateStarFilterCounts(rooms) {
+    starFilter.querySelectorAll('.star-filter-btn').forEach(function (button) {
+      const star = Number(button.dataset.star);
+      button.textContent = star ? star + '星 ' + starCount(star, rooms) : '全部';
+    });
+  }
+
+  function createStarFilter() {
+    [0, 1, 2, 3, 4, 5].forEach(function (star) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'star-filter-btn';
+      button.dataset.star = String(star);
+      button.textContent = star ? star + '星 0' : '全部';
+      button.classList.toggle('active', star === 0);
+      button.setAttribute('aria-pressed', String(star === 0));
+      button.addEventListener('click', function () { setStarFilter(star); });
+      starFilter.appendChild(button);
     });
   }
 
@@ -195,6 +236,7 @@
       applyRoomVisual(row, entry);
     });
     updateProgress();
+    applyStarFilter(false);
   }
 
   function createRoomRow(floor, laneIndex, roomIndex) {
@@ -263,6 +305,7 @@
         roomData()[key] = Object.assign({}, current, { status: value, stars: 0 });
         applyRoomVisual(row, roomData()[key]);
         updateProgress();
+        applyStarFilter(false);
         saveState(true);
       });
       controls.appendChild(button);
@@ -283,6 +326,7 @@
         roomData()[key] = Object.assign({}, current, { status: '', stars: current.stars === star ? 0 : star });
         applyRoomVisual(row, roomData()[key]);
         updateProgress();
+        applyStarFilter(false);
         saveState(true);
       });
       stars.appendChild(button);
@@ -369,11 +413,88 @@
     return row;
   }
 
+  function ensureLaneRooms(laneGroup) {
+    if (laneGroup.dataset.roomsCreated === 'true') return;
+    const floor = Number(laneGroup.dataset.floor);
+    const laneIndex = Number(laneGroup.dataset.laneIndex);
+    const laneCard = laneGroup.querySelector('.lane-card');
+    letters.forEach(function (_, roomIndex) {
+      laneCard.appendChild(createRoomRow(floor, laneIndex, roomIndex));
+    });
+    laneGroup.dataset.roomsCreated = 'true';
+  }
+
+  function setLaneOpen(laneGroup, open) {
+    if (open) ensureLaneRooms(laneGroup);
+    const laneCard = laneGroup.querySelector('.lane-card');
+    laneCard.hidden = !open;
+    laneGroup.classList.toggle('open', open);
+    laneGroup.querySelector('.lane-toggle').setAttribute('aria-expanded', String(open));
+    laneGroup.querySelector('.lane-action').textContent = open ? '收起' : '展开';
+  }
+
+  function applyStarFilter(restoreOpen) {
+    let matchedRooms = 0;
+    const rooms = roomData();
+    document.querySelectorAll('.lane-group').forEach(function (laneGroup) {
+      const floor = Number(laneGroup.dataset.floor);
+      const laneIndex = Number(laneGroup.dataset.laneIndex);
+      if (!activeStar) {
+        laneGroup.hidden = false;
+        laneGroup.querySelectorAll('.room-row').forEach(function (row) { row.hidden = false; });
+        if (restoreOpen) setLaneOpen(laneGroup, openBeforeFilter.has(laneGroup.dataset.laneKey));
+        return;
+      }
+      let laneMatches = 0;
+      letters.forEach(function (_, roomIndex) {
+        const entry = rooms[roomKey(floor, laneIndex, roomIndex)];
+        if (entry && entry.stars === activeStar) laneMatches += 1;
+      });
+      laneGroup.hidden = laneMatches === 0;
+      matchedRooms += laneMatches;
+      if (!laneMatches) return;
+      setLaneOpen(laneGroup, true);
+      laneGroup.querySelectorAll('.room-row').forEach(function (row) {
+        const entry = rooms[row.dataset.key];
+        row.hidden = !entry || entry.stars !== activeStar;
+      });
+    });
+    document.querySelectorAll('.floor-section').forEach(function (section) {
+      const hasVisibleLane = Array.from(section.querySelectorAll('.lane-group')).some(function (laneGroup) {
+        return !laneGroup.hidden;
+      });
+      const hideFloor = Boolean(activeStar) && !hasVisibleLane;
+      section.hidden = hideFloor;
+      const chip = floorNav.querySelector('[data-floor="' + section.dataset.floor + '"]');
+      if (chip) chip.hidden = hideFloor;
+    });
+    filterEmpty.hidden = !activeStar || matchedRooms > 0;
+    filterEmpty.textContent = activeStar ? '没有找到 ' + activeStar + ' 星房间' : '';
+  }
+
+  function setStarFilter(star) {
+    const previousStar = activeStar;
+    if (!previousStar && star) {
+      openBeforeFilter = new Set();
+      document.querySelectorAll('.lane-group.open').forEach(function (laneGroup) {
+        openBeforeFilter.add(laneGroup.dataset.laneKey);
+      });
+    }
+    activeStar = star;
+    starFilter.querySelectorAll('.star-filter-btn').forEach(function (button) {
+      const selected = Number(button.dataset.star) === activeStar;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    });
+    applyStarFilter(Boolean(previousStar && !star));
+  }
+
   function createRooms() {
     floors.forEach(function (floor) {
       const section = document.createElement('section');
       section.className = 'floor-section';
       section.id = 'floor-' + floor;
+      section.dataset.floor = String(floor);
       const heading = document.createElement('h2');
       heading.className = 'floor-title';
       heading.textContent = floor + '楼';
@@ -382,6 +503,9 @@
       lanes.forEach(function (_, laneIndex) {
         const laneGroup = document.createElement('section');
         laneGroup.className = 'lane-group';
+        laneGroup.dataset.floor = String(floor);
+        laneGroup.dataset.laneIndex = String(laneIndex);
+        laneGroup.dataset.laneKey = floor + '-' + laneIndex;
         const laneHeading = document.createElement('h3');
         laneHeading.className = 'lane-title';
         const laneToggle = document.createElement('button');
@@ -406,19 +530,9 @@
         laneCard.id = 'lane-' + floor + '-' + laneIndex;
         laneCard.hidden = true;
         laneToggle.setAttribute('aria-controls', laneCard.id);
-        let roomsCreated = false;
         laneToggle.addEventListener('click', function () {
           const willOpen = laneCard.hidden;
-          if (willOpen && !roomsCreated) {
-            letters.forEach(function (_, roomIndex) {
-              laneCard.appendChild(createRoomRow(floor, laneIndex, roomIndex));
-            });
-            roomsCreated = true;
-          }
-          laneCard.hidden = !willOpen;
-          laneGroup.classList.toggle('open', willOpen);
-          laneToggle.setAttribute('aria-expanded', String(willOpen));
-          laneAction.textContent = willOpen ? '收起' : '展开';
+          setLaneOpen(laneGroup, willOpen);
         });
         laneGroup.appendChild(laneHeading);
         laneGroup.appendChild(laneCard);
@@ -434,6 +548,7 @@
   locationInput.value = currentRecord().location;
   dateInput.value = state.date;
   createFloorNav();
+  createStarFilter();
   createRooms();
   updateProgress();
   saveState(false);
