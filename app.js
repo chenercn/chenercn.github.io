@@ -12,6 +12,7 @@
   const locationInput = document.getElementById('location');
   const dateInput = document.getElementById('recordDate');
   const progressText = document.getElementById('progressText');
+  const shareReportButton = document.getElementById('shareReport');
   const clearAllButton = document.getElementById('clearAll');
   const toast = document.getElementById('saveToast');
   let toastTimer;
@@ -494,6 +495,108 @@
     applyStarFilter(Boolean(previousStar && !star));
   }
 
+  function reportRoomName(floor, laneIndex, roomIndex, entry) {
+    const customRoom = typeof entry.customRoom === 'string' ? entry.customRoom.trim() : '';
+    if (entry.numbering === 'custom' && customRoom) return customRoom;
+    if (entry.numbering === 'numbers') return numberRoom(floor, laneIndex, roomIndex);
+    return letterRoom(floor, laneIndex, roomIndex);
+  }
+
+  function appendReportCell(row, tagName, text) {
+    const cell = document.createElement(tagName);
+    cell.textContent = text;
+    row.appendChild(cell);
+  }
+
+  function buildPrintReport() {
+    const oldReport = document.getElementById('printReport');
+    if (oldReport) oldReport.remove();
+
+    const report = document.createElement('section');
+    report.id = 'printReport';
+    report.setAttribute('aria-hidden', 'true');
+
+    const title = document.createElement('h1');
+    title.className = 'print-report-title';
+    title.textContent = '房间巡查报告';
+    report.appendChild(title);
+
+    const meta = document.createElement('div');
+    meta.className = 'print-report-meta';
+    const location = currentRecord().location.trim() || '未填写';
+    const filterLabel = activeStar ? activeStar + '星房间' : '全部房间';
+    const matches = activeStar ? starCount(activeStar, roomData()) : floors.length * lanes.length * letters.length;
+    ['位置：' + location, '日期：' + state.date, '范围：' + filterLabel, '房间数：' + matches + '间'].forEach(function (text) {
+      const item = document.createElement('div');
+      item.textContent = text;
+      meta.appendChild(item);
+    });
+    report.appendChild(meta);
+
+    if (!matches) {
+      const empty = document.createElement('p');
+      empty.textContent = '当前筛选条件下没有房间记录。';
+      report.appendChild(empty);
+    }
+
+    const rooms = roomData();
+    floors.forEach(function (floor) {
+      const floorRows = [];
+      lanes.forEach(function (_, laneIndex) {
+        letters.forEach(function (_, roomIndex) {
+          const entry = rooms[roomKey(floor, laneIndex, roomIndex)];
+          if (activeStar && (!entry || entry.stars !== activeStar)) return;
+          floorRows.push({ laneIndex: laneIndex, roomIndex: roomIndex, entry: entry });
+        });
+      });
+      if (!floorRows.length) return;
+
+      const floorSection = document.createElement('section');
+      floorSection.className = 'print-floor';
+      const floorTitle = document.createElement('h2');
+      floorTitle.className = 'print-floor-title';
+      floorTitle.textContent = floor + '楼 · ' + floorRows.length + '间';
+      floorSection.appendChild(floorTitle);
+
+      const table = document.createElement('table');
+      table.className = 'print-table';
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      ['巷子', '房间号', '结果', '备注'].forEach(function (text) { appendReportCell(headRow, 'th', text); });
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      floorRows.forEach(function (item) {
+        const entry = item.entry || { status: 'close', stars: 0, note: '', numbering: 'letters', customRoom: '' };
+        const row = document.createElement('tr');
+        appendReportCell(row, 'td', laneNumber(floor, item.laneIndex) + '巷');
+        appendReportCell(row, 'td', reportRoomName(floor, item.laneIndex, item.roomIndex, entry));
+        appendReportCell(row, 'td', entry.stars ? entry.stars + '星' : 'Closed');
+        appendReportCell(row, 'td', entry.note || '');
+        tbody.appendChild(row);
+      });
+      table.appendChild(tbody);
+      floorSection.appendChild(table);
+      report.appendChild(floorSection);
+    });
+
+    document.body.appendChild(report);
+    return report;
+  }
+
+  function sharePdfReport() {
+    const report = buildPrintReport();
+    let cleaned = false;
+    function cleanup() {
+      if (cleaned) return;
+      cleaned = true;
+      report.remove();
+    }
+    window.addEventListener('afterprint', cleanup, { once: true });
+    window.print();
+    setTimeout(cleanup, 60000);
+  }
+
   function createRooms() {
     floors.forEach(function (floor) {
       const section = document.createElement('section');
@@ -569,6 +672,7 @@
     renderCurrentRecord();
     saveState(true);
   });
+  shareReportButton.addEventListener('click', sharePdfReport);
   clearAllButton.addEventListener('click', function () {
     const confirmed = window.confirm('确定要清空全部日期的所有记录吗？此操作无法撤销。');
     if (!confirmed) return;
