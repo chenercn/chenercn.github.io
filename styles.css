@@ -12,6 +12,10 @@
   --shadow: 0 14px 40px rgba(36, 36, 30, 0.08);
 }
 
+.filter-hidden {
+  display: none !important;
+}
+
 * { box-sizing: border-box; }
 
 html { scroll-behavior: smooth; }
