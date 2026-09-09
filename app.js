@@ -433,6 +433,11 @@
     laneGroup.querySelector('.lane-action').textContent = open ? '收起' : '展开';
   }
 
+  function setFilterHidden(element, hidden) {
+    element.hidden = hidden;
+    element.classList.toggle('filter-hidden', hidden);
+  }
+
   function applyStarFilter(restoreOpen) {
     let matchedRooms = 0;
     const rooms = roomData();
@@ -440,8 +445,8 @@
       const floor = Number(laneGroup.dataset.floor);
       const laneIndex = Number(laneGroup.dataset.laneIndex);
       if (!activeStar) {
-        laneGroup.hidden = false;
-        laneGroup.querySelectorAll('.room-row').forEach(function (row) { row.hidden = false; });
+        setFilterHidden(laneGroup, false);
+        laneGroup.querySelectorAll('.room-row').forEach(function (row) { setFilterHidden(row, false); });
         if (restoreOpen) setLaneOpen(laneGroup, openBeforeFilter.has(laneGroup.dataset.laneKey));
         return;
       }
@@ -450,13 +455,13 @@
         const entry = rooms[roomKey(floor, laneIndex, roomIndex)];
         if (entry && entry.stars === activeStar) laneMatches += 1;
       });
-      laneGroup.hidden = laneMatches === 0;
+      setFilterHidden(laneGroup, laneMatches === 0);
       matchedRooms += laneMatches;
       if (!laneMatches) return;
       setLaneOpen(laneGroup, true);
       laneGroup.querySelectorAll('.room-row').forEach(function (row) {
         const entry = rooms[row.dataset.key];
-        row.hidden = !entry || entry.stars !== activeStar;
+        setFilterHidden(row, !entry || entry.stars !== activeStar);
       });
     });
     document.querySelectorAll('.floor-section').forEach(function (section) {
@@ -464,9 +469,9 @@
         return !laneGroup.hidden;
       });
       const hideFloor = Boolean(activeStar) && !hasVisibleLane;
-      section.hidden = hideFloor;
+      setFilterHidden(section, hideFloor);
       const chip = floorNav.querySelector('[data-floor="' + section.dataset.floor + '"]');
-      if (chip) chip.hidden = hideFloor;
+      if (chip) setFilterHidden(chip, hideFloor);
     });
     filterEmpty.hidden = !activeStar || matchedRooms > 0;
     filterEmpty.textContent = activeStar ? '没有找到 ' + activeStar + ' 星房间' : '';
