@@ -585,16 +585,8 @@
   }
 
   function sharePdfReport() {
-    const report = buildPrintReport();
-    let cleaned = false;
-    function cleanup() {
-      if (cleaned) return;
-      cleaned = true;
-      report.remove();
-    }
-    window.addEventListener('afterprint', cleanup, { once: true });
+    buildPrintReport();
     window.print();
-    setTimeout(cleanup, 60000);
   }
 
   function createRooms() {
