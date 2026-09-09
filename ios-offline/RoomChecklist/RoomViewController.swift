@@ -1,7 +1,7 @@
 import UIKit
 import WebKit
 
-final class RoomViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate {
+final class RoomViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate, WKUIDelegate {
     private var webView: WKWebView!
 
     override func viewDidLoad() {
@@ -11,7 +11,7 @@ final class RoomViewController: UIViewController, WKScriptMessageHandler, WKNavi
         let contentController = WKUserContentController()
         contentController.add(self, name: "printPDF")
         let printBridge = WKUserScript(
-            source: "window.print = function () { window.webkit.messageHandlers.printPDF.postMessage(null); };",
+            source: "window.print = function () { var field = document.getElementById('recordDate'); window.webkit.messageHandlers.printPDF.postMessage(field ? field.value : ''); };",
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true
         )
@@ -23,6 +23,7 @@ final class RoomViewController: UIViewController, WKScriptMessageHandler, WKNavi
 
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = self
+        webView.uiDelegate = self
         webView.translatesAutoresizingMaskIntoConstraints = false
         webView.isOpaque = false
         webView.backgroundColor = .clear
@@ -49,10 +50,25 @@ final class RoomViewController: UIViewController, WKScriptMessageHandler, WKNavi
         let printController = UIPrintInteractionController.shared
         let info = UIPrintInfo(dictionary: nil)
         info.outputType = .general
-        info.jobName = "房间巡查报告"
+        let recordDate = (message.body as? String).flatMap { value in
+            value.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) == nil ? nil : value
+        } ?? formattedToday()
+        info.jobName = "房间巡查报告_\(recordDate)"
         printController.printInfo = info
         printController.printFormatter = webView.viewPrintFormatter()
         printController.present(animated: true, completionHandler: nil)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptConfirmPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        let alert = UIAlertController(title: "请确认", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "取消", style: .cancel) { _ in completionHandler(false) })
+        alert.addAction(UIAlertAction(title: "确定", style: .destructive) { _ in completionHandler(true) })
+        present(alert, animated: true)
     }
 
     func webView(
@@ -77,5 +93,12 @@ final class RoomViewController: UIViewController, WKScriptMessageHandler, WKNavi
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             label.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
+    }
+
+    private func formattedToday() -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
     }
 }
