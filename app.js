@@ -298,7 +298,7 @@
       button.type = 'button';
       button.className = 'status-btn';
       button.dataset.value = value;
-      button.textContent = 'Close';
+      button.textContent = 'Closed';
       button.setAttribute('aria-label', letterRoom(floor, laneIndex, roomIndex) + ' ' + button.textContent);
       button.addEventListener('click', function () {
         const current = roomData()[key] || {};
