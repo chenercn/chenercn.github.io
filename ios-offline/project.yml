@@ -1,0 +1,26 @@
+name: RoomChecklist
+options:
+  bundleIdPrefix: com.chener
+  deploymentTarget:
+    iOS: "15.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+targets:
+  RoomChecklist:
+    type: application
+    platform: iOS
+    sources:
+      - path: RoomChecklist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.chener.roomchecklist
+        PRODUCT_NAME: RoomChecklist
+        INFOPLIST_FILE: RoomChecklist/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGNING_ALLOWED: NO
+    scheme:
+      gatherCoverageData: false
