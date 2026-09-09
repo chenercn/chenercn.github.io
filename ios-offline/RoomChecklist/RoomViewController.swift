@@ -36,8 +36,8 @@ final class RoomViewController: UIViewController, WKScriptMessageHandler, WKNavi
             webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
 
-        guard let webDirectory = Bundle.main.resourceURL?.appendingPathComponent("Web"),
-              let indexURL = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "Web") else {
+        guard let webDirectory = Bundle.main.resourceURL,
+              let indexURL = Bundle.main.url(forResource: "index", withExtension: "html") else {
             showLoadError()
             return
         }
