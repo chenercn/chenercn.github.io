@@ -96,6 +96,27 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .progress-text { color: var(--muted); font-size: 14px; white-space: nowrap; }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.share-report-btn {
+  min-height: 34px;
+  padding: 5px 11px;
+  border: 1px solid #dfbf4b;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: #6d5500;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.share-report-btn:active { background: #ffe986; }
+
 .clear-all-btn {
   min-height: 34px;
   padding: 4px 8px;
@@ -448,6 +469,8 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .save-toast.show { opacity: 1; transform: translate(50%, 0); }
 
+#printReport { display: none; }
+
 @media (max-width: 480px) {
   .app-shell { box-shadow: none; }
   .note-header { padding-left: 16px; padding-right: 16px; }
@@ -459,7 +482,8 @@ button { -webkit-tap-highlight-color: transparent; }
   .status-btn { padding: 0 5px; font-size: 13px; }
   .star-btn { width: min(22px, 5.5vw); font-size: 21px; }
   .note-btn { padding: 0 4px; font-size: 13px; }
-  .meta-row { gap: 6px; }
+  .meta-row { flex-wrap: wrap; gap: 8px 6px; }
+  .header-actions { width: 100%; justify-content: flex-end; }
   .clear-all-btn { padding-left: 4px; padding-right: 4px; }
 }
 
@@ -471,4 +495,76 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .save-toast { transition: none; }
+}
+
+@media print {
+  @page { size: A4 portrait; margin: 12mm; }
+
+  body {
+    min-width: 0;
+    background: #fff;
+    color: #111;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+
+  body > * { display: none !important; }
+
+  #printReport {
+    display: block !important;
+    font-size: 10pt;
+    line-height: 1.35;
+  }
+
+  .print-report-title {
+    margin: 0 0 4mm;
+    font-size: 20pt;
+    text-align: center;
+  }
+
+  .print-report-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2mm 6mm;
+    margin-bottom: 5mm;
+    padding: 3mm;
+    border: 1px solid #bbb;
+  }
+
+  .print-floor {
+    margin-top: 5mm;
+  }
+
+  .print-floor-title {
+    margin: 0 0 2mm;
+    font-size: 13pt;
+    break-after: avoid-page;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .print-table th,
+  .print-table td {
+    padding: 1.4mm 2mm;
+    border: 1px solid #bbb;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .print-table th {
+    background: #f0f0f0;
+    text-align: left;
+  }
+
+  .print-table th:nth-child(1),
+  .print-table td:nth-child(1) { width: 16%; }
+
+  .print-table th:nth-child(2),
+  .print-table td:nth-child(2) { width: 22%; }
+
+  .print-table th:nth-child(3),
+  .print-table td:nth-child(3) { width: 18%; }
 }
